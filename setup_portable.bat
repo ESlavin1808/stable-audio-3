@@ -21,7 +21,7 @@ if %errorlevel% neq 0 (
 
 :: ─── Виртуальное окружение ─────────────────────────────
 if exist "%VENV_DIR%" (
-    echo [1] Виртуальное окружение уже есть (%VENV_DIR%^)
+    echo [1] Виртуальное окружение уже есть
 ) else (
     echo [1] Создание виртуального окружения...
     uv venv "%VENV_DIR%"
@@ -38,30 +38,30 @@ call "%VENV_DIR%\Scripts\activate.bat"
 echo.
 echo [2] Проверка существующего Torch...
 python "%ROOT_DIR%app\check_torch.py"
-set "TORCH_STATUS=%errorlevel%"
-
-if %TORCH_STATUS% equ 0 (
-    echo.
-    echo   [OK] Torch с CUDA уже работает -- пропускаем.
+if %errorlevel% equ 0 (
+    echo   [OK] Torch с CUDA работает и GPU совместим -- пропускаем.
     goto :skip_torch
 )
 
-:: Сначала пробуем cu128 (Blackwell sm_90+)
+:: Пробуем cu128 (Blackwell / RTX 50xx) -> cu126 -> CPU
 echo.
 echo   Установка Torch с CUDA...
-echo   Попытка 1: cu128 (Blackwell / RTX 50xx)
-uv pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128
-if %errorlevel% neq 0 goto :try_cu126
 
+:retry_cu128
+echo   Попытка 1: cu128 (Blackwell / RTX 50xx)
+uv pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128 --force-reinstall
+if %errorlevel% neq 0 (
+    echo   cu128 не сработал, пробуем cu126...
+    goto :try_cu126
+)
 python "%ROOT_DIR%app\check_torch.py"
 if %errorlevel% equ 0 goto :skip_torch
 
 :try_cu126
 echo.
 echo   Попытка 2: cu126 (Ampere / RTX 30-40xx)
-uv pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu126
+uv pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu126 --force-reinstall
 if %errorlevel% neq 0 goto :try_cpu
-
 python "%ROOT_DIR%app\check_torch.py"
 if %errorlevel% equ 0 goto :skip_torch
 
