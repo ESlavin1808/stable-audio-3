@@ -421,7 +421,7 @@ async function downloadModel(modelId) {
     const errData = await startRes.json();
     if (progressEl) {
       progressEl.style.display = 'flex';
-      progressEl.innerHTML = `❌ ${errData.detail}`;
+      progressEl.innerHTML = `❌ ${(errData.detail || '').replace(/\n/g, '<br>')}`;
       progressEl.style.color = 'var(--red)';
     }
     return;
@@ -494,7 +494,7 @@ async function downloadModel(modelId) {
           setTimeout(() => loadModelList(), 1500);
         } else if (p.status === 'error') {
           done = true;
-          if (label) label.textContent = `❌ ${p.error}`;
+          if (label) label.innerHTML = `❌ ${(p.error || '').replace(/\n/g, '<br>')}`;
           if (progressEl) progressEl.style.color = 'var(--red)';
           if (btn) { btn.disabled = false; btn.textContent = '⬇ Скачать модель'; }
         } else {

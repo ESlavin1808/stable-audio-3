@@ -385,6 +385,11 @@ async def start_download(model_id: str):
     if not _hf_token:
         raise HTTPException(status_code=401, detail="HF токен не настроен. Сначала введите токен.")
 
+    # Если офлайн-режим включён — временно отключаем для скачивания
+    if _offline_mode:
+        log.info("Офлайн-режим временно отключён для скачивания модели")
+        os.environ.pop("HF_HUB_OFFLINE", None)
+
     with _dl_lock:
         existing = _downloads.get(model_id, {})
         if existing.get("status") == "downloading":
