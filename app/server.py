@@ -81,6 +81,11 @@ def _load_settings():
                 custom = Path(_custom_output_dir)
                 custom.mkdir(parents=True, exist_ok=True)
                 OUTPUT_DIR = custom
+            # Восстанавливаем env var для HF (офлайн-режим)
+            if _offline_mode:
+                os.environ["HF_HUB_OFFLINE"] = "1"
+            else:
+                os.environ.pop("HF_HUB_OFFLINE", None)
         except Exception:
             pass
 
@@ -409,8 +414,26 @@ def _do_download(model_id: str, repo_id: str, token):
             commit_hash = repo_info.sha
             log.info(f"repo_info: commit={commit_hash[:12]}")
         except Exception as e:
-            log.warning(f"repo_info не сработал ({e}), пробуем list_repo_refs")
-            refs_list = api.list_repo_refs(repo_id, token=token)
+            err_str = str(e)
+            log.warning(f"repo_info не сработал ({err_str}), пробуем list_repo_refs")
+            # Если DNS ошибка — сразу понятное сообщение
+            if "getaddrinfo" in err_str or "11001" in err_str:
+                raise RuntimeError(
+                    f"Не удаётся подключиться к HuggingFace (DNS ошибка).\n"
+                    f"  • Проверьте интернет-соединение\n"
+                    f"  • Откройте https://huggingface.co в браузере — доступен?\n"
+                    f"  • Отключите офлайн-режим в настройках (вкладка Модели)\n"
+                    f"  • Если используете VPN/прокси — проверьте настройки"
+                )
+            if "403" in err_str:
+                raise RuntimeError(
+                    f"Нет доступа к {repo_id}. Примите лицензию и проверьте токен."
+                )
+            # Пробуем list_repo_refs как fallback
+            try:
+                refs_list = api.list_repo_refs(repo_id, token=token)
+            except Exception as e2:
+                raise RuntimeError(f"Ошибка соединения с HuggingFace: {e2}")
             # В разных версиях huggingface_hub разная структура
             if hasattr(refs_list, 'main'):
                 commit_hash = refs_list.main.commit_hash
