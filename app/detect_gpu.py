@@ -177,9 +177,9 @@ if __name__ == '__main__':
         gpu, cuda, driver = get_nvidia_info()
         spec, url = get_pytorch_url(cuda)
         if url:
-            print(f'"{spec}" --index-url {url}')
+            print(f'{spec} --index-url {url}')
         else:
-            print(f'"{spec}"')
+            print(f'{spec}')
     else:
         # Show info
         print(get_gpu_summary())

@@ -60,16 +60,11 @@ echo [2/4] Определение GPU и установка PyTorch...
 echo.
 
 python "%ROOT_DIR%app\detect_gpu.py"
+echo.
 
 :: Получаем рекомендацию из detect_gpu.py
-echo.
-echo   Устанавливаем PyTorch...
-for /f "tokens=*" %%a in ('python "%ROOT_DIR%app\detect_gpu.py" --recommend') do set "TORCH_CMD=%%a"
-
-if "%TORCH_CMD%"=="" (
-    echo   [ОШИБКА] Не удалось определить конфигурацию PyTorch.
-    set "TORCH_CMD=torch torchaudio"
-)
+set "TORCH_CMD=torch torchaudio"
+for /f "delims=" %%a in ('python "%ROOT_DIR%app\detect_gpu.py" --recommend') do set "TORCH_CMD=%%a"
 
 echo   Установка: uv pip install %TORCH_CMD%
 uv pip install %TORCH_CMD%
