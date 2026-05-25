@@ -22,7 +22,6 @@ if not exist "%ROOT_DIR%hf_cache\hub" mkdir "%ROOT_DIR%hf_cache\hub"
 echo ====================================================
 echo   Stable Audio 3 — Графический интерфейс
 echo ====================================================
-echo.
 "%VENV_DIR%\Scripts\python.exe" "%ROOT_DIR%app\detect_gpu.py"
 echo.
 echo   Все данные хранятся в папке программы.
