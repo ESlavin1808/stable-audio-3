@@ -41,53 +41,65 @@ python "%ROOT_DIR%app\check_torch.py"
 set "TORCH_STATUS=%errorlevel%"
 
 if %TORCH_STATUS% equ 0 (
-    echo   Torch с CUDA уже работает — пропускаем переустановку.
+    echo.
+    echo   [OK] Torch с CUDA уже работает -- пропускаем.
     goto :skip_torch
 )
-if %TORCH_STATUS% equ 1 (
-    echo.
-    echo   Torch есть но без CUDA. Переустанавливаем...
-)
-if %TORCH_STATUS% equ 2 (
-    echo.
-    echo   Устанавливаем Torch с поддержкой CUDA...
-)
 
-:: Установка torch с CUDA
+:: Сначала пробуем cu128 (Blackwell sm_90+)
 echo.
-echo   Установка: uv pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu126
+echo   Установка Torch с CUDA...
+echo   Попытка 1: cu128 (Blackwell / RTX 50xx)
+uv pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128
+if %errorlevel% neq 0 goto :try_cu126
+
+python "%ROOT_DIR%app\check_torch.py"
+if %errorlevel% equ 0 goto :skip_torch
+
+:try_cu126
+echo.
+echo   Попытка 2: cu126 (Ampere / RTX 30-40xx)
 uv pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu126
-if %errorlevel% neq 0 (
-    echo   [ПРЕДУПРЕЖДЕНИЕ] CUDA-версия не встала, пробуем CPU...
-    uv pip install torch torchaudio
-)
+if %errorlevel% neq 0 goto :try_cpu
+
+python "%ROOT_DIR%app\check_torch.py"
+if %errorlevel% equ 0 goto :skip_torch
+
+:try_cpu
+echo.
+echo   [ПРЕДУПРЕЖДЕНИЕ] CUDA не встала, ставим CPU-версию...
+uv pip install torch torchaudio
+
 :skip_torch
 
-:: ─── stable-audio-3 ───────────────────────────────────
+:: ─── stable-audio-3 (без зависимостей, torch уже есть) ──
 echo.
 echo [3] Установка stable-audio-3...
-uv pip install git+https://github.com/Stability-AI/stable-audio-3.git
+uv pip install "git+https://github.com/Stability-AI/stable-audio-3.git" --no-deps
 if %errorlevel% neq 0 (
     echo [ОШИБКА] Не удалось установить stable-audio-3
 )
 
+:: ─── Зависимости stable-audio-3 (кроме torch) ──────────
+echo.
+echo [3b] Установка зависимостей stable-audio-3...
+uv pip install einops einops-exts huggingface-hub numpy safetensors soundfile tqdm transformers
+
 :: ─── Веб-сервер ──────────────────────────────────────
 echo.
 echo [4] Установка веб-сервера и утилит...
-uv pip install fastapi uvicorn requests soundfile python-multipart
+uv pip install fastapi uvicorn requests python-multipart
 
 :: ─── Проверка ────────────────────────────────────────
 echo.
 echo === Проверка установки ===
-python -c "import torch; print(f'  Torch: {torch.__version__}, CUDA: {torch.cuda.is_available()}')"
-if %errorlevel% neq 0 echo   [ОШИБКА] Torch не импортируется
-python -c "import stable_audio_3; print('  stable-audio-3: OK')" 2>nul || echo   [ПРЕДУПРЕЖДЕНИЕ] stable-audio-3 не импортируется
+python "%ROOT_DIR%app\check_torch.py"
+python -c "import stable_audio_3; print('  stable-audio-3: OK')" 2>nul || echo   [ПРЕДУПРЕЖДЕНИЕ] stable-audio-3
 python -c "import fastapi; import uvicorn; import requests; print('  fastapi/uvicorn/requests: OK')"
 
 echo.
 echo ====================================================
 echo   Установка завершена!
-echo.
 echo   Запустите run_portable.bat
 echo ====================================================
 pause

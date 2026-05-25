@@ -1,11 +1,12 @@
 """
 Detect GPU + CUDA version. Informational only.
-Shown at startup in run_portable.bat.
+Recommends the right PyTorch index URL based on GPU compute capability.
 """
 import subprocess
 import sys
 import re
 import os
+from pathlib import Path
 
 
 def get_nvidia_info():
@@ -25,7 +26,6 @@ def get_nvidia_info():
         driver_version = None
 
         for line in output.split('\n'):
-            # GPU name from the GPU table row
             if line.strip().startswith('|') and 'NVIDIA' in line and not line.startswith('|   N/A'):
                 parts = line.split('|')
                 if len(parts) >= 2:
@@ -34,18 +34,14 @@ def get_nvidia_info():
                     if m:
                         gpu_name = m.group(1).strip()
 
-            # CUDA Version
             m = re.search(r'CUDA Version:\s*(\d+\.\d+)', line)
             if m:
                 cuda_version = m.group(1)
-
-            # Driver Version
             m = re.search(r'Driver Version:\s*(\d+\.\d+)', line)
             if m:
                 driver_version = m.group(1)
 
         return gpu_name, cuda_version, driver_version
-
     except FileNotFoundError:
         return None, None, None
     except subprocess.TimeoutExpired:
@@ -54,20 +50,49 @@ def get_nvidia_info():
         return None, None, str(e)
 
 
+def get_torch_index(device_capability=None):
+    """
+    Pick the right PyTorch index URL based on GPU compute capability.
+    cu126: supports sm_50-sm_90 (older GPUs up to RTX 40xx)
+    cu128: supports sm_50-sm_120 (includes RTX 50xx Blackwell)
+    """
+    if device_capability:
+        major, minor = device_capability
+        # CC 9.0+ (Hopper/Blackwell) need torch with sm_90+ support
+        if (major >= 9 and minor >= 0) or major >= 10:
+            return "cu128", "https://download.pytorch.org/whl/cu128"
+        # CC 8.0+ (Ampere) work with both, cu128 preferred
+        elif major >= 8:
+            return "cu128", "https://download.pytorch.org/whl/cu128"
+    
+    # Default or older GPUs: cu126 (widest compatibility)
+    # Try cu128 first, fall back to cu126
+    return "cu128", "https://download.pytorch.org/whl/cu128"
+
+
 def print_gpu_summary():
     """Prints a human-readable GPU summary."""
     gpu, cuda, driver = get_nvidia_info()
-    import torch
+    torch_label = "не установлен"
+    
+    try:
+        import torch
+        torch_label = f"{torch.__version__}"
+        if torch.cuda.is_available():
+            cc = torch.cuda.get_device_capability(0)
+            torch_label += f" (CC {cc[0]}.{cc[1]})"
+    except ImportError:
+        pass
 
     lines = []
     lines.append("=" * 50)
-    lines.append("  >> GPU и CUDA <<")
+    lines.append("  GPU и CUDA")
     lines.append("=" * 50)
 
     if gpu:
         lines.append(f"  GPU:        {gpu}")
     else:
-        lines.append(f"  GPU:        Не обнаружена (NVIDIA)")
+        lines.append(f"  GPU:        Не обнаружена")
 
     if cuda:
         lines.append(f"  CUDA:       {cuda}")
@@ -76,13 +101,19 @@ def print_gpu_summary():
 
     if driver:
         lines.append(f"  Драйвер:    {driver}")
-    else:
-        lines.append(f"  Драйвер:    nvidia-smi не найден")
-
-    lines.append(f"  Torch:      {torch.__version__}")
-    lines.append(f"  CUDA in     Torch: {torch.cuda.is_available()}")
-    if torch.cuda.is_available():
-        lines.append(f"  GPU name:   {torch.cuda.get_device_name(0)}")
+    
+    lines.append(f"  Torch:      {torch_label}")
+    
+    # Recommend
+    try:
+        import torch
+        if torch.cuda.is_available():
+            cc = torch.cuda.get_device_capability(0)
+            tag, url = get_torch_index(cc)
+            lines.append(f"  Рекомендуемый индекс: {tag} ({url})")
+    except ImportError:
+        tag, url = get_torch_index()
+        lines.append(f"  Рекомендуемый индекс: {tag} ({url})")
 
     lines.append("=" * 50)
     return "\n".join(lines)
