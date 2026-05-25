@@ -91,7 +91,7 @@ if %errorlevel% neq 0 (
 :: ─── Шаг 4: Веб-сервер и прочие зависимости ────────────────────
 echo.
 echo [4/4] Установка веб-сервера и утилит...
-uv pip install fastapi uvicorn requests soundfile
+uv pip install fastapi uvicorn requests soundfile python-multipart
 
 :: ─── Проверка ─────────────────────────────────────────
 echo.
