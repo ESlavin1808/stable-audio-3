@@ -167,12 +167,20 @@ def install_pytorch(venv_python):
 
 
 if __name__ == '__main__':
-    # Если запущен напрямую — выводим информацию
-    print(get_gpu_summary())
-    print()
-
     if len(sys.argv) > 1 and sys.argv[1] == '--install':
         if len(sys.argv) > 2:
             install_pytorch(sys.argv[2])
         else:
             print("  Использование: python detect_gpu.py --install <path_to_python>")
+    elif len(sys.argv) > 1 and sys.argv[1] == '--recommend':
+        # Output one-line pip install string for setup_portable.bat
+        gpu, cuda, driver = get_nvidia_info()
+        spec, url = get_pytorch_url(cuda)
+        if url:
+            print(f'"{spec}" --index-url {url}')
+        else:
+            print(f'"{spec}"')
+    else:
+        # Show info
+        print(get_gpu_summary())
+        print()

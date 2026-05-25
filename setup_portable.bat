@@ -39,14 +39,16 @@ if exist "%VENV_DIR%" (
     echo   Виртуальное окружение уже есть, очищаем...
     rmdir /s /q "%VENV_DIR%"
 )
-uv venv "%VENV_DIR%" --python 3.10
+uv venv "%VENV_DIR%" --python 3.10 --seed
 if %errorlevel% neq 0 (
     echo   Python 3.10 не найден, пробуем 3.11...
-    uv venv "%VENV_DIR%" --python 3.11
+    rmdir /s /q "%VENV_DIR%" 2>nul
+    uv venv "%VENV_DIR%" --python 3.11 --seed
 )
 if %errorlevel% neq 0 (
     echo   Python 3.11 не найден, пробуем системный Python 3...
-    uv venv "%VENV_DIR%"
+    rmdir /s /q "%VENV_DIR%" 2>nul
+    uv venv "%VENV_DIR%" --seed
 )
 echo   Виртуальное окружение создано.
 
@@ -59,18 +61,28 @@ echo.
 
 python "%ROOT_DIR%app\detect_gpu.py"
 
+:: Получаем рекомендацию из detect_gpu.py
 echo.
-python "%ROOT_DIR%app\detect_gpu.py" --install "%VENV_DIR%\Scripts\python.exe"
+echo   Устанавливаем PyTorch...
+for /f "tokens=*" %%a in ('python "%ROOT_DIR%app\detect_gpu.py" --recommend') do set "TORCH_CMD=%%a"
+
+if "%TORCH_CMD%"=="" (
+    echo   [ОШИБКА] Не удалось определить конфигурацию PyTorch.
+    set "TORCH_CMD=torch torchaudio"
+)
+
+echo   Установка: uv pip install %TORCH_CMD%
+uv pip install %TORCH_CMD%
+
 if %errorlevel% neq 0 (
-    echo [ПРЕДУПРЕЖДЕНИЕ] PyTorch не установился стандартным способом.
-    echo   Пробуем pip install напрямую...
-    pip install torch torchaudio --force-reinstall
+    echo   [ПРЕДУПРЕЖДЕНИЕ] Не удалось установить GPU-версию, пробуем CPU...
+    uv pip install torch torchaudio
 )
 
 :: ─── Шаг 3: stable-audio-3 из GitHub ──────────────────────────
 echo.
 echo [3/4] Установка stable-audio-3 из GitHub...
-pip install git+https://github.com/Stability-AI/stable-audio-3.git
+uv pip install git+https://github.com/Stability-AI/stable-audio-3.git
 if %errorlevel% neq 0 (
     echo [ОШИБКА] Не удалось установить stable-audio-3
     echo   Проверьте соединение с GitHub
@@ -79,13 +91,13 @@ if %errorlevel% neq 0 (
 :: ─── Шаг 4: Веб-сервер и прочие зависимости ────────────────────
 echo.
 echo [4/4] Установка веб-сервера и утилит...
-pip install fastapi uvicorn requests
+uv pip install fastapi uvicorn requests soundfile
 
 :: ─── Проверка ─────────────────────────────────────────
 echo.
 echo === Проверка установки ===
 python -c "import torch; print(f'  Torch: {torch.__version__}, CUDA: {torch.cuda.is_available()}')"
-python -c "import stable_audio_3; print('  stable-audio-3: OK')" 2>nul || echo "  [ПРЕДУПРЕЖДЕНИЕ] stable-audio-3 не импортируется"
+python -c "import stable_audio_3; print('  stable-audio-3: OK')" 2>nul || python -c "print('  [ПРЕДУПРЕЖДЕНИЕ] stable-audio-3 не импортируется')"
 python -c "import fastapi; import uvicorn; import requests; import soundfile; print('  fastapi/uvicorn/requests/soundfile: OK')"
 
 echo.
