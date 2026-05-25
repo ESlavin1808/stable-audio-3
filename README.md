@@ -32,8 +32,8 @@
 
 | Компонент | Требование |
 |-----------|-----------|
-| **OS** | Windows 10/11 (другие не тестировались) |
-| **Python** | 3.10 (другие версии могут не подойти) |
+| **OS** | Windows 10/11, Linux, macOS (Intel / Apple Silicon) |
+| **Python** | 3.10+ (авто-определение через uv) |
 | **GPU** | NVIDIA с ≥8 ГБ VRAM (рекомендуется) или CPU (медленно) |
 | **Место** | ~2 ГБ на зависимости + ~5 ГБ на каждую модель |
 | **Инструменты** | [`uv`](https://docs.astral.sh/uv/#installation) (установщик пакетов) |
@@ -53,8 +53,15 @@ pip install uv
 
 ### 1. Установка зависимостей
 
+**Windows:**
 ```batch
 setup_portable.bat
+```
+
+**Linux / macOS:**
+```bash
+chmod +x setup_portable.sh
+./setup_portable.sh
 ```
 
 Что делает скрипт:
@@ -80,8 +87,14 @@ setup_portable.bat
 
 ### 3. Запуск
 
+**Windows:**
 ```batch
 run_portable.bat
+```
+
+**Linux / macOS:**
+```bash
+./run_portable.sh
 ```
 
 После запуска откройте браузер по адресу [http://localhost:8765](http://localhost:8765)
@@ -112,8 +125,10 @@ stable-audio-3/                  # Можно скопировать на фле
 ├── output/                     # Сгенерированные аудиофайлы
 ├── settings.json               # Настройки (создаётся при первом запуске)
 ├── settings.example.json       # Пример настроек
-├── setup_portable.bat          # Установка зависимостей
-├── run_portable.bat            # Запуск
+├── setup_portable.bat          # Установка зависимостей (Windows)
+├── setup_portable.sh           # Установка зависимостей (Linux/macOS)
+├── run_portable.bat            # Запуск (Windows)
+├── run_portable.sh             # Запуск (Linux/macOS)
 ├── start_server.py             # Скрипт запуска сервера
 ├── check_install.py            # Проверка установки
 └── README.md
@@ -192,9 +207,10 @@ stable-audio-3/                  # Можно скопировать на фле
 
 | Проблема | Решение |
 |----------|---------|
-| **`uv` не найден** | Установите: `pip install uv` |
+| **`uv` не найден** | Установите: `pip install uv` или `curl -LsSf https://astral.sh/uv/install.sh | sh` |
 | **403 при скачивании модели** | Примите лицензию на HF и/или проверьте токен |
-| **CUDA не найдена** | Проверьте драйвер NVIDIA (≥525), переустановите PyTorch |
+| **CUDA не найдена (Linux)** | Проверьте драйвер NVIDIA (≥525), переустановите PyTorch |
+| **MPS не работает (macOS)** | Убедитесь, что Python собран для arm64, используйте `python3` вместо `python` |
 | **Out of memory** | Используйте small-модель, уменьшите `steps` или длительность |
 | **Медленная генерация** | Убедитесь, что используется GPU (вкладка «Модели») |
 | **Порт 8765 занят** | Закройте другой процесс или измените порт в `start_server.py` |
