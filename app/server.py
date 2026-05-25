@@ -402,18 +402,26 @@ def _do_download(model_id: str, repo_id: str, token):
 
         # 1. Commit hash + file list
         api = HfApi()
+
+        # Пробуем получить commit hash через repo_info (надёжнее)
         try:
-            refs = api.list_repo_refs(repo_id, token=token)
-            commit_hash = refs.converted[0].target_commit if refs.converted else refs.main.commit_hash
+            repo_info = api.repo_info(repo_id, token=token)
+            commit_hash = repo_info.sha
+            log.info(f"repo_info: commit={commit_hash[:12]}")
         except Exception as e:
-            err = str(e)
-            log.error(f"list_repo_refs for {repo_id}: {err}")
-            if "403" in err:
-                raise RuntimeError(
-                    f"No access to {repo_id}. "
-                    "Accept the license and check your token."
-                )
-            raise RuntimeError(f"HuggingFace access error: {err}")
+            log.warning(f"repo_info не сработал ({e}), пробуем list_repo_refs")
+            refs_list = api.list_repo_refs(repo_id, token=token)
+            # В разных версиях huggingface_hub разная структура
+            if hasattr(refs_list, 'main'):
+                commit_hash = refs_list.main.commit_hash
+            elif hasattr(refs_list, 'converted') and refs_list.converted:
+                commit_hash = refs_list.converted[0].target_commit
+            elif isinstance(refs_list, (list, tuple)):
+                commit_hash = refs_list[0].target_commit if refs_list else None
+            else:
+                commit_hash = None
+            if not commit_hash:
+                raise RuntimeError("Не удалось получить commit hash для репозитория")
 
         all_files = api.list_repo_files(repo_id, token=token)
         repo_files = [f for f in all_files if not f.startswith('.') and not f.endswith('.gitignore')]
