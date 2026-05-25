@@ -23,6 +23,8 @@ echo ====================================================
 echo   Stable Audio 3 — Графический интерфейс
 echo ====================================================
 echo.
+"%VENV_DIR%\Scripts\python.exe" "%ROOT_DIR%app\detect_gpu.py"
+echo.
 echo   Все данные хранятся в папке программы.
 echo   Для сброса удалите папки hf_cache/ и models/.
 echo.

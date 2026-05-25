@@ -298,7 +298,8 @@ async function init() {
     const d = await res.json();
     document.getElementById('deviceDot').className = 'device-dot ' + (d.cuda_available ? 'cuda' : 'cpu');
     document.getElementById('deviceLabel').textContent = d.cuda_available
-      ? `GPU: ${d.gpu_name} (${d.vram_total})` : d.device === 'cpu' ? 'CPU' : `? ${d.error}`;
+      ? `GPU: ${d.gpu_name} (${d.vram_total})${d.driver_version ? ` · Драйвер ${d.driver_version}` : ''} · CUDA ${d.cuda_version} · Torch ${d.torch_version}`
+      : d.device === 'cpu' ? 'CPU (без GPU)' : `? ${d.error}`;
     if (d.local_models_dir) document.getElementById('localPathInput').value = d.local_models_dir;
     if (d.offline_mode) document.getElementById('offlineCheckbox').checked = true;
     updateOfflineUI(d.offline_mode);

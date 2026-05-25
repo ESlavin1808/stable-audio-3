@@ -290,6 +290,23 @@ async def get_device():
             props = torch.cuda.get_device_properties(0)
             vram = getattr(props, 'total_memory', getattr(props, 'total_mem', 0))
             info["vram_total"] = f"{vram / 1024**3:.1f} GB"
+            info["vram_total_bytes"] = vram
+        # Add GPU detection summary
+        try:
+            import sys, subprocess, re as _re
+            result = subprocess.run(
+                ['nvidia-smi'],
+                capture_output=True, text=True, timeout=5,
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
+            )
+            if result.returncode == 0:
+                for line in result.stdout.split('\n'):
+                    m = _re.search(r'Driver Version:\s*(\S+)', line)
+                    if m:
+                        info["driver_version"] = m.group(1)
+                        break
+        except Exception:
+            pass
         return info
     except Exception as e:
         return {"device": "unknown", "error": str(e)}
