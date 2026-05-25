@@ -53,8 +53,8 @@ if %errorlevel% neq 0 (
 echo [3/4] Установка stable-audio-3 из GitHub...
 pip install git+https://github.com/Stability-AI/stable-audio-3.git
 
-echo [4/4] Установка веб-сервера...
-pip install fastapi uvicorn
+echo [4/4] Установка веб-сервера и HTTP-клиента...
+pip install fastapi uvicorn requests
 
 :: Проверка
 echo.

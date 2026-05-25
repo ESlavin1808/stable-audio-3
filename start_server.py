@@ -29,19 +29,27 @@ print(f'Log: {log_file}')
 print(f'URL: http://localhost:8765')
 
 # Wait a bit and check
-time.sleep(3)
-
 import urllib.request, json
-try:
-    resp = urllib.request.urlopen('http://localhost:8765/api/device', timeout=5)
-    data = json.loads(resp.read())
-    print(f'GPU: {data.get("gpu_name", "N/A")}')
-    print(f'CUDA: {data.get("cuda_available")}')
-    print('Server is RUNNING!')
-except Exception as e:
-    print(f'Check log for errors: {e}')
-    log_handle.close()
-    with open(log_file, encoding='utf-8') as f:
-        lines = f.readlines()
-        for line in lines[-20:]:
-            print(f'  LOG: {line.rstrip()}')
+
+for attempt in range(3):
+    time.sleep(3)
+    try:
+        resp = urllib.request.urlopen('http://localhost:8765/api/device', timeout=5)
+        data = json.loads(resp.read())
+        print(f'GPU: {data.get("gpu_name", "N/A")}')
+        print(f'CUDA: {data.get("cuda_available")}')
+        print('Server is RUNNING!')
+        break
+    except Exception as e:
+        print(f'  Попытка {attempt+1}/3: {e}')
+        if attempt == 2:
+            print(f'  Сервер мог запуститься, но не ответил за 9 с.')
+            print(f'  Откройте http://localhost:8765 в браузере.')
+            log_handle.close()
+            try:
+                with open(log_file, encoding='utf-8', errors='replace') as f:
+                    lines = f.readlines()
+                    for line in lines[-10:]:
+                        print(f'  LOG: {line.rstrip()}')
+            except Exception:
+                pass
