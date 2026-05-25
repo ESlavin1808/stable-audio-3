@@ -246,14 +246,21 @@ async def list_models():
             status = "local"
             source = local[0]
 
-        # Проверяем HF кэш
+        # Проверяем HF кэш (напрямую, без try_to_load_from_cache
+        # — у неё _CACHED_NO_EXIST тоже str, ломает isinstance)
         if status != "local":
-            from huggingface_hub import try_to_load_from_cache
-            cached_config = try_to_load_from_cache(m["repo"], "model_config.json")
-            cached_ckpt = try_to_load_from_cache(m["repo"], "model.safetensors")
-            if isinstance(cached_config, str) and isinstance(cached_ckpt, str):
-                status = "cached"
-                source = "HF cache"
+            from huggingface_hub.constants import HF_HUB_CACHE
+            from pathlib import Path as _Path
+            _cache_dir = _Path(HF_HUB_CACHE)
+            _mc = _cache_dir / f"models--{m['repo'].replace('/', '--')}"
+            _ref = _mc / "refs" / "main"
+            if _ref.exists():
+                _ch = _ref.read_text().strip()
+                _snap = _mc / "snapshots" / _ch
+                _found = list(_snap.rglob("*.json")) and list(_snap.rglob("*.safetensors"))
+                if _found:
+                    status = "cached"
+                    source = "HF cache"
 
         entry = dict(m)
         entry["status"] = status
