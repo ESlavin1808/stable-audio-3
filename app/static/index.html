@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stable Audio 3</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0d1117;--bg2:#161b22;--bg3:#21262d;--border:#30363d;--text:#e6edf3;--text2:#8b949e;--accent:#58a6ff;--accent2:#1f6feb;--green:#3fb950;--orange:#d29922;--red:#f85149;--radius:8px;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.5}
+a{color:var(--accent)}
+.app{display:flex;flex-direction:column;min-height:100vh}
+
+/* Header */
+.header{background:var(--bg2);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.header-left{display:flex;align-items:center;gap:12px}
+.header-left h1{font-size:18px;font-weight:600;background:linear-gradient(135deg,#58a6ff,#a371f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.header-badge{font-size:11px;padding:2px 8px;border-radius:12px;background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
+.device-info{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px}
+.device-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.device-dot.cuda{background:var(--green)}
+.device-dot.cpu{background:var(--orange)}
+.hf-link,.offline-link{cursor:pointer;color:var(--text2);font-size:12px}
+.hf-link:hover,.offline-link:hover{color:var(--accent)}
+
+/* Tabs */
+.tabs{display:flex;gap:0;background:var(--bg2);border-bottom:1px solid var(--border);padding:0 16px}
+.tab{padding:10px 20px;font-size:13px;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;user-select:none}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
+
+/* Main grid */
+.main{display:none;padding:20px;gap:20px;flex:1;overflow-y:auto}
+.main.active{display:grid}
+.main-generate{grid-template-columns:380px 1fr}
+.main-models{grid-template-columns:1fr}
+@media(max-width:900px){.main-generate{grid-template-columns:1fr}}
+
+/* Controls */
+.panel-left{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;overflow-y:auto;max-height:calc(100vh - 140px)}
+.panel-right{padding:0;overflow-y:auto;display:flex;flex-direction:column}
+.control-group{margin-bottom:18px}
+.control-group label{display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px}
+.control-group .label-row{display:flex;justify-content:space-between;align-items:center}
+select,input[type="text"],input[type="number"],textarea{width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:border-color .2s}
+select:focus,input:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:80px;line-height:1.4}
+select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b949e' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
+input[type="range"]{width:100%;-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;background:var(--border);outline:none;margin:8px 0}
+input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid var(--bg)}
+.range-value{font-size:20px;font-weight:700;color:var(--accent)}
+.mode-tabs{display:flex;gap:4px;margin-bottom:12px}
+.mode-tab{flex:1;padding:8px 4px;text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--text2);cursor:pointer;transition:all .2s;user-select:none}
+.mode-tab:hover{border-color:var(--text2)}
+.mode-tab.active{background:var(--accent2);border-color:var(--accent);color:#fff}
+.upload-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg)}
+.upload-zone:hover{border-color:var(--accent);background:rgba(88,166,255,.05)}
+.upload-zone.has-file{border-color:var(--green);background:rgba(63,185,80,.05)}
+.upload-zone-text{font-size:12px;color:var(--text2)}
+.upload-zone-filename{font-size:12px;color:var(--green);font-weight:500;display:none}
+.extra-toggle{font-size:12px;color:var(--accent);cursor:pointer;user-select:none}
+.extra-options{margin-top:12px;padding:12px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border);display:none}
+.extra-options.show{display:block}
+.extra-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn-generate{width:100%;padding:12px;background:linear-gradient(135deg,#1f6feb,#58a6ff);border:none;border-radius:var(--radius);color:#fff;font-size:15px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-generate:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(31,111,235,.4)}
+.btn-generate:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none}
+.spinner.show{display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.status-bar{padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;display:none}
+.status-bar.show{display:block}
+.status-text{font-size:13px;color:var(--text2)}
+.status-text.error{color:var(--red)}
+.status-text.success{color:var(--green)}
+.progress-bar{width:100%;height:4px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden;display:none}
+.progress-bar.show{display:block}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),#a371f7);border-radius:2px;width:0%;transition:width .3s}
+.result-area{flex:1}
+.result-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.result-info{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.result-meta{font-size:12px;color:var(--text2)}
+.result-actions{display:flex;gap:8px}
+.btn-sm{padding:6px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:4px}
+.btn-sm:hover{background:var(--border)}
+.btn-sm.danger:hover{color:var(--red);border-color:var(--red)}
+.btn-sm.primary{background:var(--accent2);border-color:var(--accent);color:#fff}
+.btn-sm.primary:hover{background:var(--accent)}
+.btn-sm.green{background:var(--green);border-color:var(--green);color:#fff}
+.btn-sm.green:hover{opacity:.85}
+.btn-sm.warning{background:var(--orange);border-color:var(--orange);color:#fff}
+.btn-sm.warning:hover{opacity:.85}
+audio{width:100%;margin-top:8px}
+.history-empty{text-align:center;padding:40px 20px;color:var(--text2)}
+.history-empty-icon{font-size:48px;margin-bottom:12px;opacity:.3}
+.history-empty-text{font-size:14px}
+.examples{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.example-chip{padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:14px;font-size:11px;color:var(--text2);cursor:pointer;transition:all .2s;user-select:none}
+.example-chip:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Models page */
+.models-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;margin-top:12px}
+.model-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:border-color .2s}
+.model-card.status-local{border-color:var(--green)}
+.model-card.status-cached{border-color:var(--accent)}
+.model-card.status-download{border-color:var(--orange)}
+.model-card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.model-card-title{font-size:15px;font-weight:600}
+.model-card-badge{font-size:11px;padding:2px 10px;border-radius:12px;background:var(--bg3)}
+.model-card-badge.local{background:rgba(63,185,80,.15);color:var(--green);border:1px solid var(--green)}
+.model-card-badge.cached{background:rgba(88,166,255,.15);color:var(--accent);border:1px solid var(--accent)}
+.model-card-badge.download{background:rgba(210,153,34,.15);color:var(--orange);border:1px solid var(--orange)}
+.model-card-desc{font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6}
+.model-card-actions{display:flex;gap:8px;flex-wrap:wrap}
+.model-card-progress{font-size:12px;padding:6px 0 0 0;display:flex;align-items:center;gap:6px;color:var(--text2);flex-wrap:wrap;min-height:18px}
+.progress-bar-det{width:100%;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.progress-bar-fill-det{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:3px;transition:width .5s ease}
+.progress-label{color:var(--text2)}
+.progress-pct{color:var(--accent);font-weight:600}
+.progress-time{color:var(--text2);min-width:30px;text-align:right}
+.path-input{display:flex;gap:8px;margin:12px 0}
+.path-input input{flex:1}
+.settings-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.settings-section h3{font-size:14px;font-weight:600;margin-bottom:12px}
+.help-step{padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;display:flex;gap:12px;align-items:flex-start}
+.help-step-num{width:28px;height:28px;border-radius:50%;background:var(--accent2);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}
+.help-step-text{font-size:13px;color:var(--text2);line-height:1.5}
+.help-step-text strong{color:var(--text)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:flex;align-items:center;justify-content:center}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);width:500px;max-width:90vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);font-size:15px;font-weight:600}
+.modal-close{background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;padding:4px}
+.modal-close:hover{color:var(--text)}
+.modal-body{padding:20px}
+::-webkit-scrollbar{width:8px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--text2)}
+</style>
+</head>
+<body>
+<div class="app">
+
+<header class="header">
+  <div class="header-left">
+    <h1>♫ Stable Audio 3</h1>
+    <span class="header-badge">portable</span>
+  </div>
+  <div class="device-info">
+    <span class="device-dot cpu" id="deviceDot"></span>
+    <span id="deviceLabel">проверка…</span>
+    <span style="margin:0 4px;color:var(--border)">|</span>
+    <span class="hf-link" id="hfStatus" onclick="showPage('models')">🔑</span>
+    <span style="margin:0 2px;color:var(--border)">|</span>
+    <span class="offline-link" id="offlineIcon">🌐</span>
+  </div>
+</header>
+
+<!-- Tabs -->
+<div class="tabs">
+  <div class="tab active" data-page="generate" onclick="showPage('generate')">🎵 Генерация</div>
+  <div class="tab" data-page="models" onclick="showPage('models')">⚙️ Модели</div>
+</div>
+
+<!-- ============ TAB: Generate ============ -->
+<div class="main main-generate active" id="page-generate">
+  <div class="panel-left">
+    <div class="control-group">
+      <label>Модель</label>
+      <select id="modelSelect" onchange="onModelChange()"></select>
+    </div>
+    <div class="control-group">
+      <label>Режим</label>
+      <div class="mode-tabs">
+        <div class="mode-tab active" data-mode="text-to-audio" onclick="setMode('text-to-audio')">🎵 TTA</div>
+        <div class="mode-tab" data-mode="audio-to-audio" onclick="setMode('audio-to-audio')">🔊 ATA</div>
+        <div class="mode-tab" data-mode="inpaint" onclick="setMode('inpaint')">✂️ Inpaint</div>
+      </div>
+    </div>
+    <div class="control-group">
+      <label>Промпт</label>
+      <textarea id="promptInput" placeholder="Опишите аудио…"></textarea>
+      <div class="examples">
+        <span class="example-chip" onclick="fillPrompt(this)">эмбиент с дождём</span>
+        <span class="example-chip" onclick="fillPrompt(this)">глубокий техно бит 128bpm</span>
+        <span class="example-chip" onclick="fillPrompt(this)">акустическая гитара</span>
+        <span class="example-chip" onclick="fillPrompt(this)">звук открываемой банки</span>
+        <span class="example-chip" onclick="fillPrompt(this)">космическая атмосфера</span>
+      </div>
+    </div>
+    <div class="control-group">
+      <div class="label-row"><label>Длительность</label><span class="range-value" id="durationDisplay">10</span></div>
+      <input type="range" id="durationSlider" min="1" max="120" value="10" oninput="updateDuration(this.value)">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2)"><span>1 с</span><span id="durationMax">120 с</span></div>
+    </div>
+    <div class="control-group" id="audioUploadGroup" style="display:none">
+      <label>Аудио для обработки</label>
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('audioFileInput').click()">
+        <div class="upload-zone-text" id="uploadText">Нажмите, чтобы выбрать файл</div>
+        <div class="upload-zone-filename" id="uploadFilename"></div>
+      </div>
+      <input type="file" id="audioFileInput" accept=".wav,.mp3,.flac,.ogg" style="display:none" onchange="handleFileUpload(event)">
+    </div>
+    <div class="control-group" id="inpaintMaskGroup" style="display:none">
+      <div class="label-row"><label>Маска от (с)</label><span class="range-value" id="maskStartDisplay">0</span></div>
+      <input type="range" id="maskStartSlider" min="0" max="120" value="0" oninput="updateMaskStart(this.value)">
+      <div class="label-row" style="margin-top:8px"><label>Маска до (с)</label><span class="range-value" id="maskEndDisplay">5</span></div>
+      <input type="range" id="maskEndSlider" min="0" max="120" value="5" oninput="updateMaskEnd(this.value)">
+    </div>
+    <div class="control-group" id="noiseLevelGroup" style="display:none">
+      <div class="label-row"><label>Уровень шума</label><span class="range-value" id="noiseDisplay">0.3</span></div>
+      <input type="range" id="noiseSlider" min="0" max="1" step="0.05" value="0.3" oninput="updateNoise(this.value)">
+    </div>
+    <div class="control-group">
+      <span class="extra-toggle" onclick="toggleExtra()">⚙️ Дополнительно</span>
+      <div class="extra-options" id="extraOptions">
+        <div class="extra-grid">
+          <div><label>CFG Scale</label><input type="number" id="cfgScale" value="7.0" step="0.5" min="1" max="20"></div>
+          <div><label>Шаги</label><input type="number" id="steps" value="50" step="10" min="10" max="200"></div>
+        </div>
+      </div>
+    </div>
+    <button class="btn-generate" id="generateBtn" onclick="generate()">
+      <span class="spinner" id="spinner"></span>
+      <span id="btnText">🚀 Сгенерировать</span>
+    </button>
+  </div>
+  <div class="panel-right">
+    <div class="status-bar" id="statusBar">
+      <div class="status-text" id="statusText"></div>
+      <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+    <div class="result-area" id="resultArea">
+      <div class="history-empty">
+        <div class="history-empty-icon">🎛️</div>
+        <div class="history-empty-text">Нажмите «Сгенерировать»</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TAB: Models ============ -->
+<div class="main main-models" id="page-models">
+
+  <!-- Settings: Local models path -->
+  <div class="settings-section">
+    <h3>📂 Локальные модели на диске</h3>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px">
+      Если у вас уже есть файлы моделей, укажите путь к папке.
+      В папке должны быть подпапки: <code>small-music/</code>, <code>small-sfx/</code>, <code>medium/</code>
+      с файлами <code>model_config.json</code> и <code>model.safetensors</code>.
+    </p>
+    <div class="path-input">
+      <input type="text" id="localPathInput" placeholder="Например: D:\models\stable-audio-3">
+      <button class="btn-sm green" onclick="setLocalPath()">📁 Указать</button>
+      <button class="btn-sm" onclick="scanLocalModels()">🔄 Сканировать</button>
+    </div>
+    <p id="localPathStatus" style="font-size:12px;color:var(--text2)"></p>
+  </div>
+
+  <!-- Settings: HF Token + Offline -->
+  <div class="settings-section">
+    <h3>🌐 Загрузка с HuggingFace</h3>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px">
+      Если локальных моделей нет — их нужно скачать с HuggingFace.
+      Для этого примите лицензию и укажите токен.
+    </p>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <input type="password" id="hfTokenInput" placeholder="hf_xxxxxxxxxxxxxxxxxxxx" style="flex:1;max-width:350px;">
+      <button class="btn-sm primary" onclick="saveToken()">💾 Токен</button>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+      <input type="checkbox" id="offlineCheckbox" onchange="toggleOffline()">
+      ✈️ Офлайн-режим
+      <span style="font-size:11px;color:var(--text2);font-weight:normal">— не обращаться к HuggingFace, только кэш. Включается автоматически.</span>
+    </label>
+  </div>
+
+  <!-- Model cards -->
+  <div class="settings-section">
+    <h3>🎯 Доступные модели</h3>
+    <div class="models-grid" id="modelsGrid">
+      <p style="color:var(--text2);font-size:13px">Загрузка…</p>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ─── State ──────────────────────────────────────────────────────────
+const STATE = { mode: 'text-to-audio', uploadedFile: null, maxDuration: 120, generating: false };
+
+// ─── Init ───────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const res = await fetch('/api/device');
+    const d = await res.json();
+    document.getElementById('deviceDot').className = 'device-dot ' + (d.cuda_available ? 'cuda' : 'cpu');
+    document.getElementById('deviceLabel').textContent = d.cuda_available
+      ? `GPU: ${d.gpu_name} (${d.vram_total})` : d.device === 'cpu' ? 'CPU' : `? ${d.error}`;
+    if (d.local_models_dir) document.getElementById('localPathInput').value = d.local_models_dir;
+    if (d.offline_mode) document.getElementById('offlineCheckbox').checked = true;
+    updateOfflineUI(d.offline_mode);
+    updateHFUI(d.hf_token_configured);
+    if (d.hf_token_configured) document.getElementById('hfTokenInput').value = '••••••••';
+  } catch(_) {}
+
+  await loadModelList();
+  showPage('generate');
+}
+
+function showPage(name) {
+  document.querySelectorAll('.main').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelector('.tab[data-page="' + name + '"]').classList.add('active');
+  if (name === 'models') loadModelList();
+}
+
+// ─── Model list ─────────────────────────────────────────────────────
+async function loadModelList() {
+  const sel = document.getElementById('modelSelect');
+  let models = [];
+  try {
+    const res = await fetch('/api/models');
+    const d = await res.json();
+
+    // Update select
+    sel.innerHTML = d.models.map(m => {
+      const icons = { local: '💾 ', cached: '💿 ', download: '🌐 ' };
+      return `<option value="${m.id}">${icons[m.status] || ''}${m.name}</option>`;
+    }).join('');
+
+    // Update cards
+    const grid = document.getElementById('modelsGrid');
+    grid.innerHTML = d.models.map(m => {
+      const st = m.status;
+      const badges = { local: '💾 На диске', cached: '💿 В кэше HF', download: '🌐 Требуется загрузка' };
+      const actions = [];
+      if (st === 'download') {
+        actions.push(`<button class="btn-sm warning" onclick="window.open('${m.license_url}','_blank')">📋 Лицензия</button>`);
+        if (d.token_configured) {
+          actions.push(`<button class="btn-sm green" onclick="downloadModel('${m.id}')">⬇ Скачать модель</button>`);
+        } else {
+          actions.push(`<button class="btn-sm" onclick="document.getElementById('hfTokenInput').focus()">🔑 Указать токен</button>`);
+        }
+      } else {
+        actions.push(!d.token_configured
+          ? `<button class="btn-sm" onclick="document.getElementById('hfTokenInput').focus()">🔑 Указать токен</button>`
+          : `<span style="font-size:12px;color:var(--green)">✅ токен есть</span>`);
+      }
+
+      return `<div class="model-card status-${st}">
+        <div class="model-card-header">
+          <div class="model-card-title">${m.name}</div>
+          <span class="model-card-badge ${st}">${badges[st]}</span>
+        </div>
+        <div class="model-card-desc">
+          <strong>${m.params}</strong> · ${m.device}<br>
+          ${m.description}<br>
+          ${m.source ? `<span style="color:var(--text2)">📂 ${m.source}</span>` : ''}
+        </div>
+        <div class="model-card-actions">${actions.join('')}</div>
+        <div id="progress-${m.id}" class="model-card-progress" style="display:none"></div>
+      </div>`;
+    }).join('');
+
+    // Update HF status
+    updateHFUI(d.token_configured);
+    updateOfflineUI(d.offline);
+  } catch(_) { sel.innerHTML = '<option>Ошибка загрузки</option>'; }
+}
+
+function updateHFUI(configured) {
+  document.getElementById('hfStatus').innerHTML = configured
+    ? '🔑 <span style="color:var(--green)">HF ✓</span>'
+    : '🔑 <span style="color:var(--orange)">HF</span>';
+}
+
+function updateOfflineUI(offline) {
+  document.getElementById('offlineIcon').innerHTML = offline
+    ? '✈️ <span style="color:var(--orange);font-size:12px;">офлайн</span>'
+    : '🌐';
+  const cb = document.getElementById('offlineCheckbox');
+  if (cb) cb.checked = offline;
+}
+
+// ─── Models management ──────────────────────────────────────────────
+async function setLocalPath() {
+  const path = document.getElementById('localPathInput').value.trim();
+  const res = await fetch('/api/models/set-path', {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({path})
+  });
+  const d = await res.json();
+  document.getElementById('localPathStatus').textContent = d.found
+    ? `✅ Путь установлен: ${d.path}` : d.status === 'ok'
+    ? `ℹ️ Путь очищен` : `❌ ${d.detail}`;
+  if (d.found) await scanLocalModels();
+  await loadModelList();
+}
+
+async function scanLocalModels() {
+  document.getElementById('localPathStatus').textContent = '🔄 Сканирование…';
+  const res = await fetch('/api/models/scan', {method: 'POST'});
+  const d = await res.json();
+  const details = d.models.map(m => `${m.id} (${m.size_gb} GB)`).join(', ');
+  document.getElementById('localPathStatus').textContent = details
+    ? `✅ Найдено: ${details}` : `ℹ️ Модели не найдены`;
+  await loadModelList();
+}
+
+async function downloadModel(modelId) {
+  const progressEl = document.getElementById('progress-' + modelId);
+  const btn = document.querySelector(`button[onclick*="downloadModel('${modelId}')"]`);
+
+  // Запуск фоновой загрузки на сервере
+  const startRes = await fetch(`/api/models/download/${modelId}`, { method: 'POST' });
+  if (!startRes.ok) {
+    const errData = await startRes.json();
+    if (progressEl) {
+      progressEl.style.display = 'flex';
+      progressEl.innerHTML = `❌ ${errData.detail}`;
+      progressEl.style.color = 'var(--red)';
+    }
+    return;
+  }
+
+  // Показываем прогресс-бар (детерминированный)
+  if (progressEl) {
+    progressEl.style.display = 'flex';
+    progressEl.style.flexWrap = 'wrap';
+    progressEl.innerHTML = `
+      <div style="width:100%">
+        <div class="progress-bar-det"><div class="progress-bar-fill-det" style="width:0%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:2px">
+          <span class="progress-label">⏳ Подготовка…</span>
+          <span class="progress-pct">0%</span>
+          <span class="progress-time">0с</span>
+        </div>
+      </div>`;
+  }
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Идёт скачивание…';
+  }
+
+  // Таймер + polling прогресса
+  const startTime = Date.now();
+  let done = false;
+
+  const poll = async () => {
+    if (done) return;
+    try {
+      const res = await fetch(`/api/models/download/${modelId}/progress`);
+      const p = await res.json();
+
+      if (progressEl) {
+        const fill = progressEl.querySelector('.progress-bar-fill-det');
+        const label = progressEl.querySelector('.progress-label');
+        const pctEl = progressEl.querySelector('.progress-pct');
+        const timeEl = progressEl.querySelector('.progress-time');
+
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        if (timeEl) timeEl.textContent = `${elapsed}с`;
+
+        if (p.status === 'downloading') {
+          if (fill) fill.style.width = `${p.percent}%`;
+          if (pctEl) pctEl.textContent = `${p.percent}%`;
+          if (label) {
+            const mb = (p.downloaded_bytes / 1048576).toFixed(1);
+            const total = (p.total_bytes / 1048576).toFixed(1);
+            const file = (p.current_file || '').split('/').pop() || '…';
+            label.textContent = `📄 ${file} · ${mb} / ${total} MB`;
+          }
+          setTimeout(poll, 1000);
+        } else if (p.status === 'done') {
+          done = true;
+          if (fill) fill.style.width = '100%';
+          if (label) label.textContent = '✅ Скачано!';
+          if (pctEl) pctEl.textContent = '100%';
+          if (progressEl) progressEl.style.color = 'var(--green)';
+
+          // ✅ Авто-включение офлайн-режима
+          const offlineCb = document.getElementById('offlineCheckbox');
+          if (offlineCb && !offlineCb.checked) {
+            await fetch('/api/offline', {
+              method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({offline: true})
+            });
+            offlineCb.checked = true;
+            updateOfflineUI(true);
+          }
+          setTimeout(() => loadModelList(), 1500);
+        } else if (p.status === 'error') {
+          done = true;
+          if (label) label.textContent = `❌ ${p.error}`;
+          if (progressEl) progressEl.style.color = 'var(--red)';
+          if (btn) { btn.disabled = false; btn.textContent = '⬇ Скачать модель'; }
+        }
+      }
+    } catch (_) {
+      if (!done) setTimeout(poll, 2000);
+    }
+  };
+
+  setTimeout(poll, 500);
+}
+
+// ─── Token ──────────────────────────────────────────────────────────
+async function saveToken() {
+  const token = document.getElementById('hfTokenInput').value.trim();
+  const res = await fetch('/api/token', {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({token})
+  });
+  const d = await res.json();
+  updateHFUI(d.configured);
+  document.getElementById('hfTokenInput').value = d.configured ? '••••••••' : '';
+  await loadModelList();
+}
+
+// ─── Offline ────────────────────────────────────────────────────────
+async function toggleOffline() {
+  const offline = document.getElementById('offlineCheckbox').checked;
+  const res = await fetch('/api/offline', {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({offline})
+  });
+  const d = await res.json();
+  updateOfflineUI(d.offline);
+}
+
+// ─── Generate page ──────────────────────────────────────────────────
+function onModelChange() {
+  const sel = document.getElementById('modelSelect');
+  STATE.maxDuration = sel.selectedOptions[0]?.value === 'medium' ? 380 : 120;
+  document.getElementById('durationMax').textContent = STATE.maxDuration + ' с';
+  document.getElementById('durationSlider').max = STATE.maxDuration;
+  updateDuration(document.getElementById('durationSlider').value);
+}
+
+function setMode(mode) {
+  STATE.mode = mode;
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+  document.getElementById('audioUploadGroup').style.display = (mode === 'audio-to-audio' || mode === 'inpaint') ? 'block' : 'none';
+  document.getElementById('inpaintMaskGroup').style.display = mode === 'inpaint' ? 'block' : 'none';
+  document.getElementById('noiseLevelGroup').style.display = mode === 'audio-to-audio' ? 'block' : 'none';
+}
+
+function updateDuration(v){ document.getElementById('durationDisplay').textContent = v; }
+function updateMaskStart(v){ document.getElementById('maskStartDisplay').textContent = v; }
+function updateMaskEnd(v){ document.getElementById('maskEndDisplay').textContent = v; }
+function updateNoise(v){ document.getElementById('noiseDisplay').textContent = v; }
+function fillPrompt(el){ document.getElementById('promptInput').value = el.textContent; }
+function toggleExtra(){ document.getElementById('extraOptions').classList.toggle('show'); }
+
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  STATE.uploadedFile = file;
+  document.getElementById('uploadZone').classList.add('has-file');
+  document.getElementById('uploadText').style.display = 'none';
+  const fn = document.getElementById('uploadFilename');
+  fn.style.display = 'block';
+  fn.textContent = `📁 ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+}
+
+async function generate() {
+  if (STATE.generating) return;
+  const prompt = document.getElementById('promptInput').value.trim();
+  if (!prompt) { showStatus('Введите промпт', 'error'); return; }
+
+  const model = document.getElementById('modelSelect').value;
+  const duration = parseFloat(document.getElementById('durationSlider').value);
+  const formData = new FormData();
+  formData.append('prompt', prompt);
+  formData.append('model_name', model);
+  formData.append('duration', duration);
+  formData.append('mode', STATE.mode);
+  formData.append('cfg_scale', parseFloat(document.getElementById('cfgScale').value));
+  formData.append('steps', parseInt(document.getElementById('steps').value));
+
+  if (STATE.mode === 'audio-to-audio' && STATE.uploadedFile) {
+    formData.append('init_audio', STATE.uploadedFile);
+    formData.append('init_noise_level', parseFloat(document.getElementById('noiseSlider').value));
+  }
+  if (STATE.mode === 'inpaint' && STATE.uploadedFile) {
+    formData.append('inpaint_audio', STATE.uploadedFile);
+    formData.append('inpaint_start', parseFloat(document.getElementById('maskStartSlider').value));
+    formData.append('inpaint_end', parseFloat(document.getElementById('maskEndSlider').value));
+  }
+
+  STATE.generating = true;
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  document.getElementById('spinner').classList.add('show');
+  document.getElementById('btnText').textContent = 'Генерация…';
+  showStatus(`🎵 Генерация ${model}…`, '');
+  document.getElementById('progressBar').classList.add('show');
+  animateProgress();
+
+  try {
+    const res = await fetch('/api/generate', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `Ошибка ${res.status}`);
+    document.getElementById('progressFill').style.width = '100%';
+    setTimeout(() => {
+      addResult(data);
+      showStatus(`✅ Готово: ${data.filename}`, 'success');
+      document.getElementById('progressBar').classList.remove('show');
+      document.getElementById('progressFill').style.width = '0%';
+    }, 500);
+  } catch (e) {
+    showStatus(`❌ ${e.message}`, 'error');
+    document.getElementById('progressBar').classList.remove('show');
+  } finally {
+    STATE.generating = false;
+    btn.disabled = false;
+    document.getElementById('spinner').classList.remove('show');
+    document.getElementById('btnText').textContent = '🚀 Сгенерировать';
+  }
+}
+
+function animateProgress() {
+  let p = 0;
+  setInterval(() => {
+    p += Math.random() * 8;
+    if (p > 90) p = 90;
+    document.getElementById('progressFill').style.width = p + '%';
+  }, 2000);
+}
+
+function showStatus(text, type) {
+  const bar = document.getElementById('statusBar');
+  const el = document.getElementById('statusText');
+  bar.classList.add('show');
+  el.textContent = text;
+  el.className = 'status-text' + (type ? ' ' + type : '');
+}
+
+function addResult(data) {
+  const area = document.getElementById('resultArea');
+  const empty = area.querySelector('.history-empty');
+  if (empty) empty.remove();
+  const card = document.createElement('div');
+  card.className = 'result-card';
+  card.innerHTML = `
+    <div class="result-info">
+      <div class="result-meta">
+        <strong>${data.filename}</strong><br>
+        ${data.model} · ${data.duration} с · ${(data.size_bytes/1024/1024).toFixed(1)} MB
+      </div>
+      <div class="result-actions">
+        <a href="${data.file_path}" download class="btn-sm primary">⬇ Скачать</a>
+        <button class="btn-sm danger" onclick="deleteOutput('${data.filename}',this)">🗑</button>
+      </div>
+    </div>
+    <audio controls src="${data.file_path}"></audio>`;
+  area.insertBefore(card, area.firstChild);
+}
+
+async function deleteOutput(filename, btn) {
+  const res = await fetch(`/api/outputs/${filename}`, {method:'DELETE'});
+  if (res.ok) btn.closest('.result-card').remove();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

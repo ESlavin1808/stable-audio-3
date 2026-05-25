@@ -1,0 +1,55 @@
+# ─── Environment ────────────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+
+# ─── Python ─────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# ─── Settings & secrets ─────────────────────────────────
+settings.json
+*.secret
+
+# ─── HF cache (local, auto-created) ─────────────────────
+hf_cache/
+
+# ─── Downloaded models ──────────────────────────────────
+models/
+
+# ─── Logs ───────────────────────────────────────────────
+*.log
+server.log
+
+# ─── Output ─────────────────────────────────────────────
+output/
+*.wav
+*.mp3
+*.ogg
+*.flac
+
+# ─── Temp scripts ───────────────────────────────────────
+app/_replace_func*.py
+app/_find_func*.py
+
+# ─── OS ─────────────────────────────────────────────────
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# ─── IDE ────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ─── Temp files ─────────────────────────────────────────
+*.tmp
+*.bak
+_temp/
+tmp/
