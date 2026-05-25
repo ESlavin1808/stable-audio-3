@@ -371,7 +371,14 @@ async function loadModelList() {
     updateHFUI(d.token_configured);
     updateOfflineUI(d.offline);
   } catch(_) { sel.innerHTML = '<option>Ошибка загрузки</option>'; }
+
+  // Восстанавливаем прогресс-бары для активных загрузок (после перерисовки)
+  for (const mid of _activeDls) {
+    startProgressPoll(mid);
+  }
 }
+
+const _activeDls = new Set(); // modelId → активные скачивания (восстанавливает прогресс при перерисовке)
 
 function updateHFUI(configured) {
   document.getElementById('hfStatus').innerHTML = configured
@@ -419,6 +426,10 @@ async function downloadModel(modelId) {
   const startRes = await fetch(`/api/models/download/${modelId}`, { method: 'POST' });
   if (!startRes.ok) {
     const errData = await startRes.json();
+    // 409 = модель уже скачивается, начинаем polling
+    if (startRes.status === 409) {
+      return startProgressPoll(modelId);
+    }
     if (progressEl) {
       progressEl.style.display = 'flex';
       progressEl.innerHTML = `❌ ${(errData.detail || '').replace(/\n/g, '<br>')}`;
@@ -428,6 +439,20 @@ async function downloadModel(modelId) {
   }
 
   // Показываем прогресс-бар (детерминированный)
+  startProgressPoll(modelId);
+}
+
+/**
+ * Показывает прогресс-бар для modelId и начинает опрос /progress
+ */
+function startProgressPoll(modelId) {
+  const progressEl = document.getElementById('progress-' + modelId);
+  const btn = document.querySelector(`button[onclick*="downloadModel('${modelId}')"]`);
+
+  // Добавляем в отслеживание активных загрузок (восстановление при перерисовке)
+  _activeDls.add(modelId);
+
+  // Показываем прогресс-бар
   if (progressEl) {
     progressEl.style.display = 'flex';
     progressEl.style.flexWrap = 'wrap';
@@ -477,6 +502,7 @@ async function downloadModel(modelId) {
           setTimeout(poll, 1000);
         } else if (p.status === 'done') {
           done = true;
+          _activeDls.delete(modelId);
           if (fill) fill.style.width = '100%';
           if (label) label.textContent = '✅ Скачано!';
           if (pctEl) pctEl.textContent = '100%';
@@ -494,6 +520,7 @@ async function downloadModel(modelId) {
           setTimeout(() => loadModelList(), 1500);
         } else if (p.status === 'error') {
           done = true;
+          _activeDls.delete(modelId);
           if (label) label.innerHTML = `❌ ${(p.error || '').replace(/\n/g, '<br>')}`;
           if (progressEl) progressEl.style.color = 'var(--red)';
           if (btn) { btn.disabled = false; btn.textContent = '⬇ Скачать модель'; }
