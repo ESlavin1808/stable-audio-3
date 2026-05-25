@@ -360,7 +360,17 @@ async def start_download(model_id: str):
         existing = _downloads.get(model_id, {})
         if existing.get("status") == "downloading":
             raise HTTPException(status_code=409, detail="Модель уже скачивается")
-        _downloads[model_id] = {"status": "starting", "percent": 0}
+        # Сразу инициализируем как "downloading" — фронтенд видит прогресс немедленно
+        _downloads[model_id] = {
+            "status": "downloading",
+            "files_total": 0,
+            "files_done": 0,
+            "total_bytes": 0,
+            "downloaded_bytes": 0,
+            "percent": 0.0,
+            "current_file": "Подготовка…",
+            "error": None,
+        }
 
     loop = asyncio.get_event_loop()
     loop.run_in_executor(None, _do_download, model_id, model_info["repo"], _hf_token)

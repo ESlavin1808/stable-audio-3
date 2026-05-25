@@ -496,6 +496,9 @@ async function downloadModel(modelId) {
           if (label) label.textContent = `❌ ${p.error}`;
           if (progressEl) progressEl.style.color = 'var(--red)';
           if (btn) { btn.disabled = false; btn.textContent = '⬇ Скачать модель'; }
+        } else {
+          // Статус "starting" или любой другой — продолжаем опрос
+          if (!done) setTimeout(poll, 1000);
         }
       }
     } catch (_) {
